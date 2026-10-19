@@ -99,3 +99,9 @@ to end on a single GPU.
 exercises every stage type — SFT, DPO, GRPO, Custom (a hand-written trainer
 step), Merge, and optionally Eval — with tiny datasets, in about 10 minutes.
 Use it to smoke-test an environment or a change before a real run.
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/DQN-Labs/dqntrain/blob/main/examples/quick_test.ipynb)
+[![Open in Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/kernels/welcome?src=https%3A%2F%2Fraw.githubusercontent.com%2FDQN-Labs%2Fdqntrain%2Fmain%2Fexamples%2Fquick_test.ipynb)
+
+The setup cell installs Unsloth and dqntrain and reads `HF_TOKEN` from the
+environment, Colab Secrets, or Kaggle secrets.

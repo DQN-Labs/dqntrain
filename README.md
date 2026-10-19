@@ -15,6 +15,10 @@ Full documentation lives in [`docs/`](docs/index.md) and builds with MkDocs:
 - [Rewards](docs/rewards.md)
 - [API reference](docs/api.md)
 
+[`examples/quick_test.ipynb`](examples/quick_test.ipynb) runs every stage type on Qwen3-0.6B 4-bit in ~10 minutes:
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/DQN-Labs/dqntrain/blob/main/examples/quick_test.ipynb)
+[![Open in Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/kernels/welcome?src=https%3A%2F%2Fraw.githubusercontent.com%2FDQN-Labs%2Fdqntrain%2Fmain%2Fexamples%2Fquick_test.ipynb)
+
 ```bash
 pip install mkdocs-material
 mkdocs serve     # local preview at http://127.0.0.1:8000
