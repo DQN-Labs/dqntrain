@@ -54,7 +54,7 @@ def _config_cls(kind):
 class SFT:
     kind = "SFT"
 
-    def __init__(self, name, data, lora=None, train=None, save_every=None, format="chatml"):
+    def __init__(self, name, data, lora=None, train=None, save_every=None, format="chatml", callbacks=None):
         if format not in FORMATS:
             raise ValueError(f"format must be one of {FORMATS}, got {format!r}")
         self.name = name
@@ -63,23 +63,26 @@ class SFT:
         self.train = train if train is not None else Train()
         self.save_every = save_every
         self.format = format
+        self.callbacks = list(callbacks) if callbacks else []
 
 
 class DPO:
     kind = "DPO"
 
-    def __init__(self, name, data, lora=None, train=None, save_every=None):
+    def __init__(self, name, data, lora=None, train=None, save_every=None, callbacks=None):
         self.name = name
         self.data = as_data(data)
         self.lora = lora if lora is not None else LoRA()
         self.train = train if train is not None else Train()
         self.save_every = save_every
+        self.callbacks = list(callbacks) if callbacks else []
 
 
 class GRPO:
     kind = "GRPO"
 
-    def __init__(self, name, data, reward_funcs, reward_weights=None, lora=None, train=None, save_every=None):
+    def __init__(self, name, data, reward_funcs, reward_weights=None, lora=None, train=None,
+                 save_every=None, callbacks=None):
         self.name = name
         self.data = as_data(data)
         self.reward_funcs = list(reward_funcs)
@@ -87,6 +90,7 @@ class GRPO:
         self.lora = lora if lora is not None else LoRA()
         self.train = train if train is not None else Train()
         self.save_every = save_every
+        self.callbacks = list(callbacks) if callbacks else []
 
 
 class Merge:
@@ -226,7 +230,7 @@ def _run_trainer(stage, ctx):
         "args": _train_config(stage, ctx),
         "train_dataset": data["train"],
         "eval_dataset": data["eval"],
-        "callbacks": [_checkpoint_callback(ctx)],
+        "callbacks": list(getattr(stage, "callbacks", [])) + [_checkpoint_callback(ctx)],
     }
     if stage.kind == "GRPO":
         kwargs["reward_funcs"] = stage.reward_funcs

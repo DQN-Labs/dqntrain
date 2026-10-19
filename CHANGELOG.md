@@ -13,4 +13,6 @@ Initial release.
 - Built-in GRPO reward helpers with source-based hashing.
 - Checkpoint protocol: files first, manifest second; full trainer state by
   default; `meta.json` per checkpoint; per-stage JSONL logs.
+- Optional `callbacks=` on `SFT`, `DPO`, and `GRPO`; callbacks run at each save
+  before the checkpoint is uploaded and are included in the stage hash.
 - `env_report()` for environment diagnostics used in checkpoint metadata.

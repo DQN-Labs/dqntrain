@@ -5,9 +5,9 @@ unique within a pipeline.
 
 | Class | Arguments | Notes |
 |---|---|---|
-| `SFT` | `data`, `lora=None`, `train=None`, `save_every=None`, `format="chatml"` | Uses `SFTTrainer`. `format` is `"chatml"`, `"text"`, or `"template"` |
-| `DPO` | `data`, `lora=None`, `train=None`, `save_every=None` | Uses `DPOTrainer`. `beta` lives in `train` |
-| `GRPO` | `data`, `reward_funcs`, `reward_weights=None`, `lora=None`, `train=None`, `save_every=None` | Uses `GRPOTrainer`. `reward_funcs` is a list of callables |
+| `SFT` | `data`, `lora=None`, `train=None`, `save_every=None`, `format="chatml"`, `callbacks=None` | Uses `SFTTrainer`. `format` is `"chatml"`, `"text"`, or `"template"` |
+| `DPO` | `data`, `lora=None`, `train=None`, `save_every=None`, `callbacks=None` | Uses `DPOTrainer`. `beta` lives in `train` |
+| `GRPO` | `data`, `reward_funcs`, `reward_weights=None`, `lora=None`, `train=None`, `save_every=None`, `callbacks=None` | Uses `GRPOTrainer`. `reward_funcs` is a list of callables |
 | `Merge` | `push_to=None`, `dtype="bf16"` | Merges the LoRA into the base and dequantizes. Optional upload to a separate repo |
 | `Eval` | `tasks`, `limit=None` | Runs lm-eval tasks on the current model. Saves results as JSON in the repo |
 | `Custom` | `fn`, `data=None`, `save_every=None` | `fn(model, tokenizer, data, ctx)` runs user training. Returns the model for the next stage |
@@ -18,6 +18,14 @@ unique within a pipeline.
 means LoRA with the `LoRA()` defaults (`r=16`, `lora_alpha=16`,
 `lora_dropout=0.0`, `target_modules="all-linear"`,
 `use_gradient_checkpointing="unsloth"`).
+
+## Callbacks
+
+`SFT`, `DPO`, and `GRPO` accept `callbacks=[...]`, a list of transformers
+`TrainerCallback` objects. They run at every save, before dqntrain uploads the
+checkpoint, so files a callback writes into the checkpoint folder (for example
+an `eval.json`) are uploaded with it. The callback class source and instance
+attributes are part of the stage hash.
 
 ## How stages chain
 

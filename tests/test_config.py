@@ -38,6 +38,37 @@ def test_alias_hash_equivalence(tmp_path):
     assert short._hashes()[0]["hash"] == long._hashes()[0]["hash"]
 
 
+def test_callback_hash_changes_stage_hash(tmp_path):
+    class RecorderA:
+        def __init__(self, tag="a"):
+            self.tag = tag
+
+        def on_save(self, *args, **kwargs):
+            pass
+
+    class RecorderB:
+        def on_save(self, *args, **kwargs):
+            pass
+
+    store = LocalStore(tmp_path / "store")
+
+    def pipe(callbacks):
+        return dq.Sequential(
+            "run", base="base", store=store,
+            stages=[dq.SFT("sft", data=dq.Data("x"), train=dq.Train(lr=2e-4), callbacks=callbacks)],
+        )
+
+    plain = pipe(None)._hashes()[0]["hash"]
+    first = pipe([RecorderA()])._hashes()[0]["hash"]
+    second = pipe([RecorderA()])._hashes()[0]["hash"]
+    other = pipe([RecorderB()])._hashes()[0]["hash"]
+    changed_attr = pipe([RecorderA("b")])._hashes()[0]["hash"]
+    assert first == second
+    assert first != plain
+    assert other != first
+    assert changed_attr != first
+
+
 def test_lora_defaults_and_aliases():
     assert dq.LoRA().values == {
         "r": 16,

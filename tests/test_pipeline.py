@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import sys
 import types
@@ -339,6 +340,33 @@ def test_hf_upload_skips_hidden_files(tmp_path):
     (source / "model.safetensors").write_text("weights")
     store.upload_dir("run", "stage/final", str(source), "message")
     assert added == ["run/stage/final/model.safetensors"]
+
+
+def test_stage_callbacks_run_before_upload(tmp_path, datasets, hfakes):
+    datasets("sft-data", SFT_ROWS)
+    store = LocalStore(tmp_path / "store")
+    seen = []
+
+    class Recorder:
+        def __init__(self, tag):
+            self.tag = tag
+
+        def on_save(self, args, state, control, **kwargs):
+            seen.append(state.global_step)
+            folder = os.path.join(args.output_dir, f"checkpoint-{state.global_step}")
+            with open(os.path.join(folder, "eval.json"), "w") as handle:
+                json.dump({"tag": self.tag}, handle)
+
+    stage = dq.SFT(
+        "sft", data=dq.Data("sft-data"), train=dq.Train(max_steps=6), save_every=2,
+        callbacks=[Recorder("sft")],
+    )
+    make_pipe("run", store, [stage], tmp_path / "cache").run()
+
+    assert seen == [2, 4, 6]
+    for step in (2, 4, 6):
+        uploaded = tmp_path / "store" / "run" / "sft" / f"ckpt-00000{step}" / "eval.json"
+        assert json.loads(uploaded.read_text()) == {"tag": "sft"}
 
 
 def test_eval_stage_writes_results(tmp_path, hfakes, monkeypatch):

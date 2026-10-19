@@ -15,9 +15,9 @@
 ## Stage constructors
 
 ```python
-dq.SFT(name, data, lora=None, train=None, save_every=None, format="chatml")
-dq.DPO(name, data, lora=None, train=None, save_every=None)
-dq.GRPO(name, data, reward_funcs, reward_weights=None, lora=None, train=None, save_every=None)
+dq.SFT(name, data, lora=None, train=None, save_every=None, format="chatml", callbacks=None)
+dq.DPO(name, data, lora=None, train=None, save_every=None, callbacks=None)
+dq.GRPO(name, data, reward_funcs, reward_weights=None, lora=None, train=None, save_every=None, callbacks=None)
 dq.Merge(name, push_to=None, dtype="bf16")
 dq.Eval(name, tasks, limit=None)
 dq.Custom(name, fn, data=None, save_every=None)

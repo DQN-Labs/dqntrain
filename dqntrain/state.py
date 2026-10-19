@@ -5,6 +5,7 @@ import hashlib
 import json
 from datetime import datetime, timedelta, timezone
 from inspect import getsource
+from types import CodeType
 
 MANIFEST_NAME = "dqntrain.json"
 MANIFEST_VERSION = 1
@@ -29,6 +30,19 @@ def parse_time(text):
     return datetime.fromisoformat(str(text).replace("Z", "+00:00"))
 
 
+def _code_fingerprint(code):
+    consts = []
+    for const in code.co_consts:
+        if isinstance(const, CodeType):
+            consts.append(_code_fingerprint(const))
+        elif isinstance(const, (set, frozenset)):
+            consts.append(sorted(repr(item) for item in const))
+        else:
+            consts.append(repr(const))
+    parts = [repr(code.co_code), list(code.co_names), list(code.co_varnames), consts]
+    return repr(parts)
+
+
 def callable_hash(fn):
     """Return ``(hash, warning)``; warning is set when source is unavailable."""
     try:
@@ -38,7 +52,31 @@ def callable_hash(fn):
         if code is None:
             return sha12(repr(fn)), f"{getattr(fn, '__name__', '<callable>')} has no source or bytecode; hashed repr"
         warning = f"{getattr(fn, '__name__', '<callable>')} has no source; hashed bytecode"
-        return sha12(repr(code.co_code) + repr(code.co_consts)), warning
+        return sha12(_code_fingerprint(code)), warning
+
+
+def callback_hash(callback):
+    """Return ``(hash, warning)`` for a callback instance or plain callable."""
+    if callable(callback) and hasattr(callback, "__code__"):
+        return callable_hash(callback)
+    cls = type(callback)
+    parts = {}
+    try:
+        parts["source"] = getsource(cls)
+        warning = None
+    except (OSError, TypeError):
+        parts["class"] = f"{cls.__module__}.{cls.__qualname__}"
+        parts["methods"] = {
+            key: callable_hash(value)[0]
+            for key, value in vars(cls).items()
+            if callable(value)
+        }
+        warning = f"{cls.__name__} has no source; hashed class path and methods"
+    attrs = {}
+    for key, value in vars(callback).items():
+        attrs[key] = callable_hash(value)[0] if callable(value) else repr(value)
+    parts["attrs"] = attrs
+    return sha12(parts), warning
 
 
 def _data_dict(data, chash, warnings):
@@ -72,6 +110,13 @@ def stage_config(stage, base, load_values, prev_hash):
     def chash(fn):
         return callable_hash(fn)
 
+    callbacks = []
+    for fn in getattr(stage, "callbacks", []) or []:
+        value, warning = callback_hash(fn)
+        if warning:
+            warnings.append(warning)
+        callbacks.append(value)
+
     config = {
         "class": stage.kind,
         "name": stage.name,
@@ -82,6 +127,7 @@ def stage_config(stage, base, load_values, prev_hash):
         "base": base,
         "save_every": getattr(stage, "save_every", None),
         "format": getattr(stage, "format", None),
+        "callbacks": callbacks,
         "prev_hash": prev_hash,
     }
     if stage.kind == "Merge":
