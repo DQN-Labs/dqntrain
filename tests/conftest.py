@@ -80,7 +80,10 @@ class MockFastLanguageModel:
     @classmethod
     def from_pretrained(cls, model_name=None, **kwargs):
         cls.calls.append({"model_name": model_name, **kwargs})
-        return MockModel(model_name), MockTokenizer()
+        model = MockModel(model_name)
+        if model_name and os.path.isfile(os.path.join(str(model_name), "adapter_config.json")):
+            model.adapter = True
+        return model, MockTokenizer()
 
     @classmethod
     def get_peft_model(cls, model, **kwargs):
@@ -134,6 +137,8 @@ class MockTrainer:
         os.makedirs(folder, exist_ok=True)
         with open(os.path.join(folder, "trainer_state.json"), "w") as handle:
             json.dump({"global_step": step}, handle)
+        with open(os.path.join(folder, "adapter_config.json"), "w") as handle:
+            json.dump({"r": 16}, handle)
         with open(os.path.join(folder, "adapter_model.safetensors"), "w") as handle:
             handle.write("weights")
         if not getattr(self.args, "save_only_model", False):
@@ -204,5 +209,6 @@ def hfakes(monkeypatch):
     return SimpleNamespace(
         trainer=MockTrainer,
         flm=MockFastLanguageModel,
+        model=MockModel,
         adapter_calls=adapter_calls,
     )

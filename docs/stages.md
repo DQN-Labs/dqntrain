@@ -91,6 +91,12 @@ dequantized merged model in `final/`. `dtype` is `"bf16"`, `"fp16"`, or
 `"fp32"` (merged 16-bit), or `"4bit"` (merged 4-bit). When `push_to` is set,
 the merged model is uploaded to that repo; repos created this way are private.
 
+When a run restarts mid-pipeline, adapters are loaded back with Unsloth's own
+adapter loading (`FastLanguageModel.from_pretrained(adapter_dir)`), which keeps
+the merged-save fast path working. If a model was attached through plain
+`peft` instead, Unsloth refuses the merged save; the stage then falls back to
+`merge_and_unload()` plus a standard `save_pretrained`.
+
 ## Eval
 
 ```python

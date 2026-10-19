@@ -135,9 +135,13 @@ def _load_initial_model(ctx):
     fast = _fast_language_model()
     source = ctx.resume_dir or ctx.prev_final_dir
     if source and (ctx.resume_dir or _is_adapter_dir(source)):
-        model, tokenizer = fast.from_pretrained(model_name=ctx.base, **ctx.load_values)
+        try:
+            model, tokenizer = fast.from_pretrained(model_name=source, **ctx.load_values)
+        except Exception:
+            model, tokenizer = fast.from_pretrained(model_name=ctx.base, **ctx.load_values)
+            model = _load_adapter(model, source)
         ctx.adapter_loaded = True
-        return _load_adapter(model, source), tokenizer
+        return model, tokenizer
     return fast.from_pretrained(model_name=source or ctx.base, **ctx.load_values)
 
 
@@ -239,12 +243,17 @@ def _run_merge(stage, ctx):
     model, tokenizer = _prepare_model(stage, ctx)
     final_dir = os.path.join(ctx.run_dir, "final")
     os.makedirs(final_dir, exist_ok=True)
+    merged = False
     if hasattr(model, "save_pretrained_merged"):
         save_method = "merged_4bit" if stage.dtype in ("4bit", "int4") else "merged_16bit"
-        model.save_pretrained_merged(final_dir, tokenizer, save_method=save_method)
-    else:
-        merged = model.merge_and_unload() if hasattr(model, "merge_and_unload") else model
-        merged.save_pretrained(final_dir)
+        try:
+            model.save_pretrained_merged(final_dir, tokenizer, save_method=save_method)
+            merged = True
+        except RuntimeError:
+            merged = False
+    if not merged:
+        merged_model = model.merge_and_unload() if hasattr(model, "merge_and_unload") else model
+        merged_model.save_pretrained(final_dir)
         _save_tokenizer(tokenizer, final_dir)
     if stage.push_to:
         from huggingface_hub import HfApi
