@@ -73,7 +73,7 @@ class LocalStore(Store):
         dest = self._run_root(run) / rel
         if dest.exists():
             shutil.rmtree(dest)
-        shutil.copytree(local_dir, dest)
+        shutil.copytree(local_dir, dest, ignore=shutil.ignore_patterns(".*"))
         for name, data in extra_files or []:
             target = self._run_root(run) / name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -144,8 +144,11 @@ class HFStore(Store):
 
         prefix = f"{run}/{rel}/"
         ops = []
-        for root, _, files in os.walk(local_dir):
+        for root, dirs, files in os.walk(local_dir):
+            dirs[:] = sorted(name for name in dirs if not name.startswith("."))
             for name in sorted(files):
+                if name.startswith("."):
+                    continue
                 full = os.path.join(root, name)
                 inner = os.path.relpath(full, local_dir).replace(os.sep, "/")
                 ops.append(CommitOperationAdd(path_in_repo=prefix + inner, path_or_fileobj=full))

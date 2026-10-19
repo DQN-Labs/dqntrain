@@ -9,7 +9,7 @@ import pytest
 import dqntrain as dq
 import dqntrain.stages as stages
 from dqntrain.errors import ConfigChangedError, DuplicateStageError, LockHeldError
-from dqntrain.hub import LocalStore
+from dqntrain.hub import HFStore, LocalStore
 from dqntrain.state import utcnow
 
 SFT_ROWS = [
@@ -306,6 +306,39 @@ def test_adapter_resume_falls_back_to_peft_loading(tmp_path, datasets, hfakes, m
     pipe.run()
     assert hfakes.adapter_calls[-1] == str(adapter_dir)
     assert hfakes.trainer.all[-1].model.adapter is True
+
+
+def test_local_upload_skips_hidden_files(tmp_path):
+    store = LocalStore(tmp_path / "store")
+    source = tmp_path / "source"
+    (source / ".cache" / "huggingface").mkdir(parents=True)
+    (source / ".cache" / "huggingface" / ".gitignore").write_text("junk")
+    (source / ".hidden").write_text("junk")
+    (source / "model.safetensors").write_text("weights")
+    store.upload_dir("run", "stage/final", str(source), "message")
+    dest = tmp_path / "store" / "run" / "stage" / "final"
+    assert (dest / "model.safetensors").exists()
+    assert not (dest / ".cache").exists()
+    assert not (dest / ".hidden").exists()
+
+
+def test_hf_upload_skips_hidden_files(tmp_path):
+    added = []
+
+    class FakeApi:
+        def create_commit(self, repo, ops, commit_message):
+            added.extend(op.path_in_repo for op in ops)
+
+    store = HFStore.__new__(HFStore)
+    store.repo = "org/repo"
+    store.token = None
+    store.api = FakeApi()
+    source = tmp_path / "source"
+    (source / ".cache" / "huggingface").mkdir(parents=True)
+    (source / ".cache" / "huggingface" / ".gitignore").write_text("junk")
+    (source / "model.safetensors").write_text("weights")
+    store.upload_dir("run", "stage/final", str(source), "message")
+    assert added == ["run/stage/final/model.safetensors"]
 
 
 def test_eval_stage_writes_results(tmp_path, hfakes, monkeypatch):
