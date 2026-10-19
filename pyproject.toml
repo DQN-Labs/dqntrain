@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dqntrain"
+version = "1.0.0"
+description = "Simple, resumable Unsloth + TRL training pipelines with Hugging Face-backed state"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Srikanth Vattikuti" }]
+keywords = ["llm", "fine-tuning", "unsloth", "trl", "huggingface", "training"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "unsloth>=2024.8",
+    "trl>=0.12",
+    "transformers>=4.46",
+    "datasets>=2.19",
+    "huggingface_hub>=0.23",
+    "peft>=0.13",
+]
+
+[project.optional-dependencies]
+eval = ["lm-eval>=0.4"]
+test = ["pytest>=7"]
+
+[tool.setuptools.packages.find]
+include = ["dqntrain*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
