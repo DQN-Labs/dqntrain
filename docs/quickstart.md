@@ -92,3 +92,10 @@ will retrain.
 `examples/nexus_pipeline.py` in the repository is the same pipeline with a tiny
 model (`unsloth/Qwen2.5-0.5B-Instruct`) and small public datasets, and runs end
 to end on a single GPU.
+
+## Test notebook
+
+`examples/quick_test.ipynb` is a self-contained run on Qwen3-0.6B 4-bit that
+exercises every stage type — SFT, DPO, GRPO, Custom (a hand-written trainer
+step), Merge, and optionally Eval — with tiny datasets, in about 10 minutes.
+Use it to smoke-test an environment or a change before a real run.
