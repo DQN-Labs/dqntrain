@@ -6,7 +6,7 @@ from dqntrain.rewards import contains_reward, format_reward
 
 REPO = os.environ.get("DQNTRAIN_EXAMPLE_REPO", "your-name/dqntrain-nexus-demo")
 PUSH_TO = os.environ.get("DQNTRAIN_EXAMPLE_PUSH_TO") or None
-BASE = os.environ.get("DQNTRAIN_EXAMPLE_BASE", "unsloth/Qwen2.5-0.5B-Instruct")
+BASE = os.environ.get("DQNTRAIN_EXAMPLE_BASE", "Qwen/Qwen2.5-0.5B-Instruct")
 
 sft = dq.SFT(
     "sft-code",

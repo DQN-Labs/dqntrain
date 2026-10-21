@@ -50,7 +50,7 @@ dq.LoRA(r=16, alpha=16, dropout=0.0, target_modules="all-linear", **kwargs)
 
 dq.Train(**kwargs)
 
-dq.Load(**kwargs)             # defaults: max_seq_length=2048, load_in_4bit=True
+dq.Load(**kwargs)             # defaults: max_seq_length=2048, load_in_4bit=False
 ```
 
 Alias table: `epochs`→`num_train_epochs`, `lr`→`learning_rate`,

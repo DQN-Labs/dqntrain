@@ -1,8 +1,8 @@
 # dqntrain
 
-Simple, resumable training pipelines for Unsloth + TRL. A pipeline is a short
-list of stage objects, and the Hugging Face repo is the only memory: a wiped
-notebook resumes exactly where it stopped.
+Simple, resumable training pipelines for transformers + PEFT + TRL. A pipeline
+is a short list of stage objects, and the Hugging Face repo is the only memory:
+a wiped notebook resumes exactly where it stopped.
 
 ```python
 import dqntrain as dq
@@ -13,7 +13,7 @@ sft = dq.SFT("sft-code",
     save_every=200,
 )
 pipe = dq.Sequential("nexus-v1", repo="you/nexus-ckpt",
-    base="unsloth/Qwen3-4B", stages=[sft])
+    base="Qwen/Qwen3-4B", stages=[sft])
 pipe.run()
 ```
 
@@ -22,9 +22,9 @@ pipe.run()
 - **The repo is the only memory.** Local disk is a cache. A fresh machine with
   an empty cache rebuilds the same state by calling `run()`.
 - **Linear pipelines only.** Stages run in order. No branching or DAGs in v1.
-- **Unsloth and TRL passthrough.** Options reach `FastLanguageModel.from_pretrained`,
-  `FastLanguageModel.get_peft_model`, and the TRL trainer config unchanged.
-  Unknown keyword arguments are forwarded, never rejected.
+- **transformers, PEFT, and TRL passthrough.** Options reach the model loader,
+  `peft.get_peft_model`, and the TRL trainer config unchanged. Unknown keyword
+  arguments are forwarded, never rejected.
 - **Nothing private is hardcoded.** Repo names, tokens, and paths come from
   arguments or environment variables (`HF_TOKEN`).
 - **Resume is automatic.** You never pass step numbers or checkpoint paths.
@@ -46,8 +46,9 @@ pipe.run()
     pip install -e ".[test]"
     ```
 
-`dqntrain` targets CUDA/ROCm machines where Unsloth works. The core pipeline
-logic is dependency-light and the test suite runs anywhere.
+`dqntrain` targets CUDA/ROCm machines. The training backend is plain
+transformers + PEFT + TRL (no Unsloth); the core pipeline logic is
+dependency-light and the test suite runs anywhere.
 
 ## Next steps
 

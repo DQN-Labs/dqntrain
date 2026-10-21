@@ -1,7 +1,7 @@
 # Resume and state
 
 The Hugging Face repo is the only memory. Local disk is a cache: everything
-under `cache_dir` (default `/tmp/dqntrain`) can be deleted at any time and
+under `cache_dir` (default `/tmp/dqntrain-cache`) can be deleted at any time and
 `run()` rebuilds it from the store.
 
 ## Repo layout

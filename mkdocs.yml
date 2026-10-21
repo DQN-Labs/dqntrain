@@ -1,5 +1,5 @@
 site_name: dqntrain
-site_description: Simple, resumable Unsloth + TRL training pipelines with Hugging Face-backed state
+site_description: Simple, resumable transformers + PEFT + TRL training pipelines with Hugging Face-backed state
 repo_url: https://github.com/DQN-Labs/dqntrain
 repo_name: DQN-Labs/dqntrain
 edit_uri: edit/main/docs/

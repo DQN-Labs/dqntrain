@@ -51,8 +51,9 @@ def env_info():
 def env_report():
     """Print detected versions. Warns about missing packages, never fails."""
     info = env_info()
+    optional = {"unsloth", "bitsandbytes", "cuda", "rocm"}
     for key, value in info.items():
-        if value is None:
+        if value is None and key not in optional:
             print(f"WARNING: {key} not found")
         else:
             print(f"{key}: {value}")

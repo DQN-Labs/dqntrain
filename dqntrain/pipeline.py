@@ -68,7 +68,7 @@ class Sequential:
         self.store = store
         self.full_state = full_state
         self.holder = f"notebook-{uuid4().hex[:4]}"
-        self.cache_dir = Path(cache_dir or os.environ.get("DQNTRAIN_CACHE", "/tmp/dqntrain")) / name
+        self.cache_dir = Path(cache_dir or os.environ.get("DQNTRAIN_CACHE", "/tmp/dqntrain-cache")) / name
         self._manifest = None
         self.stages = []
         if stages:

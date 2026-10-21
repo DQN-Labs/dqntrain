@@ -54,13 +54,8 @@ class MockModel:
         with open(os.path.join(folder, "adapter_config.json"), "w") as handle:
             json.dump({"r": 16}, handle)
 
-    def save_pretrained_merged(self, folder, tokenizer, save_method="merged_16bit"):
-        os.makedirs(folder, exist_ok=True)
-        self.merged_with = save_method
-        with open(os.path.join(folder, "merged.json"), "w") as handle:
-            json.dump({"method": save_method}, handle)
-
     def merge_and_unload(self):
+        self.merged_with = True
         return self
 
 
@@ -74,20 +69,42 @@ class MockTokenizer:
         return "\n".join(message["content"] for message in messages)
 
 
-class MockFastLanguageModel:
+class MockBackend:
     calls = []
 
     @classmethod
-    def from_pretrained(cls, model_name=None, **kwargs):
-        cls.calls.append({"model_name": model_name, **kwargs})
-        model = MockModel(model_name)
-        if model_name and os.path.isfile(os.path.join(str(model_name), "adapter_config.json")):
+    def reset(cls):
+        cls.calls = []
+
+    @classmethod
+    def load_model(cls, name=None, dtype="bf16", max_seq_length=2048, **kwargs):
+        cls.calls.append({"model_name": name, "dtype": dtype, "max_seq_length": max_seq_length, **kwargs})
+        model = MockModel(name)
+        if name and os.path.isfile(os.path.join(str(name), "adapter_config.json")):
             model.adapter = True
         return model, MockTokenizer()
 
     @classmethod
-    def get_peft_model(cls, model, **kwargs):
-        cls.calls.append({"peft": kwargs})
+    def apply_lora(cls, model, cfg):
+        cls.calls.append({"lora": cfg})
+        model.adapter = True
+        return model
+
+    @classmethod
+    def save_adapter(cls, model, path):
+        cls.calls.append({"save_adapter": path})
+        model.save_pretrained(path)
+
+    @classmethod
+    def merge_and_save(cls, model, path, dtype="bf16"):
+        cls.calls.append({"merge_dtype": dtype})
+        os.makedirs(path, exist_ok=True)
+        with open(os.path.join(path, "merged.json"), "w") as handle:
+            json.dump({"dtype": dtype}, handle)
+
+    @classmethod
+    def _load_adapter(cls, model, adapter_dir):
+        cls.calls.append({"adapter": adapter_dir})
         model.adapter = True
         return model
 
@@ -188,19 +205,16 @@ def datasets(monkeypatch):
 
 @pytest.fixture
 def hfakes(monkeypatch):
-    MockFastLanguageModel.calls = []
+    MockBackend.reset()
     MockTrainer.all = []
     MockTrainer.kill_step = None
     MockTrainer.kill_kind = None
-    adapter_calls = []
 
-    def fake_load_adapter(model, adapter_dir):
-        adapter_calls.append(adapter_dir)
-        model.adapter = True
-        return model
-
-    monkeypatch.setattr(stages, "_fast_language_model", lambda: MockFastLanguageModel)
-    monkeypatch.setattr(stages, "_load_adapter", fake_load_adapter)
+    monkeypatch.setattr(stages.backend, "load_model", MockBackend.load_model)
+    monkeypatch.setattr(stages.backend, "apply_lora", MockBackend.apply_lora)
+    monkeypatch.setattr(stages.backend, "save_adapter", MockBackend.save_adapter)
+    monkeypatch.setattr(stages.backend, "merge_and_save", MockBackend.merge_and_save)
+    monkeypatch.setattr(stages.backend, "_load_adapter", MockBackend._load_adapter)
     monkeypatch.setattr(
         stages, "_trainer_cls",
         lambda kind: type(f"Mock{kind}Trainer", (MockTrainer,), {"kind": kind}),
@@ -208,7 +222,7 @@ def hfakes(monkeypatch):
     monkeypatch.setattr(stages, "_config_cls", lambda kind: MockConfig)
     return SimpleNamespace(
         trainer=MockTrainer,
-        flm=MockFastLanguageModel,
+        backend=MockBackend,
         model=MockModel,
-        adapter_calls=adapter_calls,
+        calls=MockBackend.calls,
     )

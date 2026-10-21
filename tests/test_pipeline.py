@@ -103,10 +103,10 @@ def test_two_stages_resume_without_retraining_first(tmp_path, datasets, hfakes):
     assert [t.kind for t in hfakes.trainer.all] == ["SFT", "DPO", "DPO"]
     resumed = hfakes.trainer.all[-1]
     assert resumed.resume_from.endswith("dpo/ckpt-000002")
-    assert hfakes.flm.calls[-1]["model_name"].endswith("dpo/ckpt-000002")
+    assert hfakes.calls[-1]["adapter"].endswith("dpo/ckpt-000002")
     assert resumed.model.adapter is True
     assert (cache / "run" / "sft" / "final" / "adapter_config.json").exists()
-    assert sum(1 for call in hfakes.flm.calls if "peft" in call) == 1
+    assert sum(1 for call in hfakes.calls if "adapter" in call) == 1
     assert store.has_dir("run", "sft/final")
 
 
@@ -262,29 +262,22 @@ def test_merge_stage_uploads_merged_model(tmp_path, datasets, hfakes):
     pipe.run()
     merged = tmp_path / "store" / "run" / "merge" / "final" / "merged.json"
     assert merged.exists()
-    assert json.loads(merged.read_text())["method"] == "merged_16bit"
-
-
-def test_merge_falls_back_when_unsloth_merge_refuses(tmp_path, datasets, hfakes, monkeypatch):
-    datasets("sft-data", SFT_ROWS)
-    store = LocalStore(tmp_path / "store")
-
-    def refusing_merge(self, folder, tokenizer, save_method="merged_16bit"):
-        raise RuntimeError(
-            "Unsloth: This model has LoRA layers, but the save method was called on the base model."
-        )
-
-    monkeypatch.setattr(hfakes.model, "save_pretrained_merged", refusing_merge)
-    pipe = make_pipe("run", store, [sft_stage(save_every=None), dq.Merge("merge", dtype="bf16")], tmp_path / "cache")
-    pipe.run()
-    final = tmp_path / "store" / "run" / "merge" / "final"
-    assert (final / "adapter_config.json").exists()
-    assert (final / "tokenizer.json").exists()
-    assert not (final / "merged.json").exists()
+    assert json.loads(merged.read_text())["dtype"] == "bf16"
+    assert (tmp_path / "store" / "run" / "merge" / "final" / "tokenizer.json").exists()
+    assert hfakes.calls[-1]["merge_dtype"] == "bf16"
     assert store.read_manifest("run")["stages"][1]["status"] == "done"
 
 
-def test_adapter_resume_falls_back_to_peft_loading(tmp_path, datasets, hfakes, monkeypatch):
+def test_checkpoint_meta_records_backend_versions(tmp_path, datasets, hfakes):
+    datasets("sft-data", SFT_ROWS)
+    store = LocalStore(tmp_path / "store")
+    make_pipe("run", store, [sft_stage()], tmp_path / "cache").run()
+    meta = json.loads((tmp_path / "store" / "run" / "sft" / "ckpt-000002" / "meta.json").read_text())
+    for key in ("torch", "transformers", "trl", "peft", "dqntrain"):
+        assert key in meta
+
+
+def test_adapter_resume_uses_peft_loading(tmp_path, datasets, hfakes):
     datasets("sft-data", SFT_ROWS)
     datasets("dpo-data", DPO_ROWS)
     store = LocalStore(tmp_path / "store")
@@ -293,19 +286,10 @@ def test_adapter_resume_falls_back_to_peft_loading(tmp_path, datasets, hfakes, m
 
     adapter_dir = cache / "run" / "sft" / "final"
     assert (adapter_dir / "adapter_config.json").exists()
-    original = hfakes.flm.from_pretrained.__func__
 
-    class StrictFastLanguageModel(hfakes.flm):
-        @classmethod
-        def from_pretrained(cls, model_name=None, **kwargs):
-            if model_name == str(adapter_dir):
-                raise RuntimeError("simulated unsloth adapter load failure")
-            return original(cls, model_name=model_name, **kwargs)
-
-    monkeypatch.setattr(stages, "_fast_language_model", lambda: StrictFastLanguageModel)
     pipe = make_pipe("run", store, [sft_stage(save_every=None), dpo_stage()], cache)
     pipe.run()
-    assert hfakes.adapter_calls[-1] == str(adapter_dir)
+    assert hfakes.calls[-1]["adapter"] == str(adapter_dir)
     assert hfakes.trainer.all[-1].model.adapter is True
 
 

@@ -61,10 +61,11 @@ def as_data(value):
 
 
 class LoRA:
-    """LoRA options forwarded to ``FastLanguageModel.get_peft_model``.
+    """LoRA options forwarded to ``peft.get_peft_model``.
 
     Real defaults are ``r=16, lora_alpha=16, lora_dropout=0.0,
-    target_modules="all-linear"`` plus ``use_gradient_checkpointing="unsloth"``.
+    target_modules="all-linear"`` plus transformers gradient checkpointing
+    (``use_gradient_checkpointing=True``).
     """
 
     def __init__(self, r=_UNSET, alpha=_UNSET, dropout=_UNSET, target_modules=_UNSET, **kwargs):
@@ -81,7 +82,7 @@ class LoRA:
                 values[key] = value
             elif key not in values:
                 values[key] = default
-        values.setdefault("use_gradient_checkpointing", "unsloth")
+        values.setdefault("use_gradient_checkpointing", True)
         self.values = values
 
     def __repr__(self):
@@ -99,16 +100,17 @@ class Train:
 
 
 class Load:
-    """Model loading options forwarded to ``FastLanguageModel.from_pretrained``.
+    """Model loading options forwarded to the transformers backend.
 
-    Defaults are ``max_seq_length=2048`` and ``load_in_4bit=True``; pass
-    ``four_bit=False`` or ``load_in_4bit=False`` to override.
+    Defaults are ``max_seq_length=2048`` and ``load_in_4bit=False`` (bf16);
+    pass ``four_bit=True`` or ``load_in_4bit=True`` only when bitsandbytes
+    works on the machine.
     """
 
     def __init__(self, **kwargs):
         values = apply_aliases(kwargs)
         values.setdefault("max_seq_length", 2048)
-        values.setdefault("load_in_4bit", True)
+        values.setdefault("load_in_4bit", False)
         self.values = values
 
     def __repr__(self):

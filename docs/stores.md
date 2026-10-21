@@ -7,7 +7,7 @@
 Used automatically when `Sequential` is given a string repo:
 
 ```python
-pipe = dq.Sequential("run", repo="you/dqntrain-ckpts", base="unsloth/Qwen3-4B", stages=[sft])
+pipe = dq.Sequential("run", repo="you/dqntrain-ckpts", base="Qwen/Qwen3-4B", stages=[sft])
 ```
 
 - The repo is created private if it does not exist.
@@ -25,7 +25,7 @@ Writes the same layout to a local folder:
 from dqntrain.hub import LocalStore
 
 store = LocalStore("/tmp/dqntrain-store")
-pipe = dq.Sequential("run", store=store, base="unsloth/Qwen3-4B", stages=[sft])
+pipe = dq.Sequential("run", store=store, base="Qwen/Qwen3-4B", stages=[sft])
 ```
 
 Every path, commit, and manifest operation has a local equivalent. No network

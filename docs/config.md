@@ -53,10 +53,10 @@ dpo = dq.DPO("dpo-prefs", data="org/prefs")
 dq.LoRA(r=16, alpha=16, dropout=0.0, target_modules="all-linear", **kwargs)
 ```
 
-Forwarded to `FastLanguageModel.get_peft_model`, with
-`use_gradient_checkpointing="unsloth"` by default. `alpha` maps to `lora_alpha`
-and `dropout` to `lora_dropout`. Passing both `alpha` and `lora_alpha` raises
-`ValueError`.
+Forwarded to `peft.get_peft_model`, with `use_gradient_checkpointing=True` by
+default (transformers `gradient_checkpointing_enable()`, not an Unsloth
+variant). `alpha` maps to `lora_alpha` and `dropout` to `lora_dropout`. Passing
+both `alpha` and `lora_alpha` raises `ValueError`.
 
 ## `Train`
 
@@ -76,8 +76,10 @@ controls `save_strategy`/`save_steps`.
 dq.Load(**kwargs)
 ```
 
-Forwarded to `FastLanguageModel.from_pretrained`. Defaults are
-`max_seq_length=2048` and `load_in_4bit=True`; overrides are allowed:
+Forwarded to `dqntrain.backend.load_model`
+(`AutoModelForCausalLM.from_pretrained`, with a vision-language fallback).
+Defaults are `max_seq_length=2048` and `load_in_4bit=False` (bf16); overrides
+are allowed:
 
 ```python
 dq.Load(four_bit=False, max_seq_length=8192)
@@ -113,6 +115,6 @@ dq.Sequential(
     store=None,         # a Store instance instead of repo (e.g. LocalStore)
     full_state=True,    # save optimizer/scheduler/RNG state per checkpoint
     token=None,         # HF token; defaults to HF_TOKEN
-    cache_dir=None,     # local cache root; defaults to /tmp/dqntrain
+    cache_dir=None,     # local cache root; defaults to /tmp/dqntrain-cache
 )
 ```

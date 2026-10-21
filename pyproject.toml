@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dqntrain"
 version = "1.0.0"
-description = "Simple, resumable Unsloth + TRL training pipelines with Hugging Face-backed state"
+description = "Simple, resumable transformers + PEFT + TRL training pipelines with Hugging Face-backed state"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Srikanth Vattikuti" }]
-keywords = ["llm", "fine-tuning", "unsloth", "trl", "huggingface", "training"]
+keywords = ["llm", "fine-tuning", "peft", "lora", "trl", "huggingface", "training"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -22,12 +22,12 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "unsloth>=2024.8",
     "trl>=0.12",
     "transformers>=4.46",
     "datasets>=2.19",
     "huggingface_hub>=0.23",
     "peft>=0.13",
+    "accelerate>=0.30",
 ]
 
 [project.optional-dependencies]

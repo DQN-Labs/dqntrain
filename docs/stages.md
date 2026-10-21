@@ -17,7 +17,7 @@ unique within a pipeline.
 `lora=None` on `SFT`, `DPO`, or `GRPO` does **not** mean full fine-tuning: it
 means LoRA with the `LoRA()` defaults (`r=16`, `lora_alpha=16`,
 `lora_dropout=0.0`, `target_modules="all-linear"`,
-`use_gradient_checkpointing="unsloth"`).
+`use_gradient_checkpointing=True`).
 
 ## Callbacks
 
@@ -94,16 +94,14 @@ grpo = dq.GRPO("grpo-code",
 merge = dq.Merge("merged", push_to="DQN-Labs/nexus-27b", dtype="bf16")
 ```
 
-Calls Unsloth's `save_pretrained_merged` on the current model, producing a
-dequantized merged model in `final/`. `dtype` is `"bf16"`, `"fp16"`, or
-`"fp32"` (merged 16-bit), or `"4bit"` (merged 4-bit). When `push_to` is set,
+Calls `dqntrain.backend.merge_and_save` on the current model:
+`merge_and_unload()` then `save_pretrained`, producing a dequantized merged
+model in `final/`. `dtype` is `"bf16"`, `"fp16"`, or `"fp32"`; `"4bit"` needs
+bitsandbytes and is rejected by the transformers backend. When `push_to` is set,
 the merged model is uploaded to that repo; repos created this way are private.
 
-When a run restarts mid-pipeline, adapters are loaded back with Unsloth's own
-adapter loading (`FastLanguageModel.from_pretrained(adapter_dir)`), which keeps
-the merged-save fast path working. If a model was attached through plain
-`peft` instead, Unsloth refuses the merged save; the stage then falls back to
-`merge_and_unload()` plus a standard `save_pretrained`.
+When a run restarts mid-pipeline, adapters are loaded back with PEFT
+(`PeftModel.from_pretrained(..., is_trainable=True)`) on top of the base model.
 
 ## Eval
 

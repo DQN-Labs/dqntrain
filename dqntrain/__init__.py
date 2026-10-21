@@ -1,4 +1,4 @@
-"""dqntrain: simple, resumable Unsloth + TRL pipelines."""
+"""dqntrain: simple, resumable transformers + PEFT + TRL pipelines."""
 from .config import Data, Load, LoRA, Train
 from .env import env_report
 from .pipeline import Sequential

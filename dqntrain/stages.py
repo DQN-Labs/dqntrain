@@ -4,23 +4,12 @@ from __future__ import annotations
 import json
 import os
 
+from . import backend
 from .config import LoRA, Train, as_data
 from .data import load_stage_data
 
 FORMATS = ("chatml", "text", "template")
 TRAINING_KINDS = ("SFT", "DPO", "GRPO")
-
-
-def _fast_language_model():
-    from unsloth import FastLanguageModel
-
-    return FastLanguageModel
-
-
-def _load_adapter(model, adapter_dir):
-    from peft import PeftModel
-
-    return PeftModel.from_pretrained(model, adapter_dir, is_trainable=True)
 
 
 def _trainer_cls(kind):
@@ -136,25 +125,27 @@ def _is_adapter_dir(path):
 
 
 def _load_initial_model(ctx):
-    fast = _fast_language_model()
     source = ctx.resume_dir or ctx.prev_final_dir
-    if source and (ctx.resume_dir or _is_adapter_dir(source)):
-        try:
-            model, tokenizer = fast.from_pretrained(model_name=source, **ctx.load_values)
-        except Exception:
-            model, tokenizer = fast.from_pretrained(model_name=ctx.base, **ctx.load_values)
-            model = _load_adapter(model, source)
+    if source and _is_adapter_dir(source):
+        model, tokenizer = backend.load_model(ctx.base, **ctx.load_values)
         ctx.adapter_loaded = True
-        return model, tokenizer
-    return fast.from_pretrained(model_name=source or ctx.base, **ctx.load_values)
+        return backend._load_adapter(model, source), tokenizer
+    return backend.load_model(source or ctx.base, **ctx.load_values)
 
 
 def _prepare_model(stage, ctx):
     if ctx.model is None:
         ctx.model, ctx.tokenizer = _load_initial_model(ctx)
-    if stage.kind in TRAINING_KINDS and not ctx.adapter_loaded:
-        ctx.model = _fast_language_model().get_peft_model(ctx.model, **stage.lora.values)
-        ctx.adapter_loaded = True
+    if stage.kind in TRAINING_KINDS:
+        if not ctx.adapter_loaded:
+            ctx.model = backend.apply_lora(ctx.model, stage.lora.values)
+            ctx.adapter_loaded = True
+        elif stage.lora.values.get("use_gradient_checkpointing") and hasattr(
+            ctx.model, "gradient_checkpointing_enable"
+        ):
+            ctx.model.gradient_checkpointing_enable()
+            if hasattr(ctx.model, "enable_input_require_grads"):
+                ctx.model.enable_input_require_grads()
     return ctx.model, ctx.tokenizer
 
 
@@ -246,19 +237,8 @@ def _run_trainer(stage, ctx):
 def _run_merge(stage, ctx):
     model, tokenizer = _prepare_model(stage, ctx)
     final_dir = os.path.join(ctx.run_dir, "final")
-    os.makedirs(final_dir, exist_ok=True)
-    merged = False
-    if hasattr(model, "save_pretrained_merged"):
-        save_method = "merged_4bit" if stage.dtype in ("4bit", "int4") else "merged_16bit"
-        try:
-            model.save_pretrained_merged(final_dir, tokenizer, save_method=save_method)
-            merged = True
-        except RuntimeError:
-            merged = False
-    if not merged:
-        merged_model = model.merge_and_unload() if hasattr(model, "merge_and_unload") else model
-        merged_model.save_pretrained(final_dir)
-        _save_tokenizer(tokenizer, final_dir)
+    backend.merge_and_save(model, final_dir, stage.dtype)
+    _save_tokenizer(tokenizer, final_dir)
     if stage.push_to:
         from huggingface_hub import HfApi
 

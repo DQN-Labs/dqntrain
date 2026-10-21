@@ -2,8 +2,8 @@
 
 ## Before you start
 
-- A CUDA or ROCm machine with Unsloth installed
-  ([Unsloth install guide](https://docs.unsloth.ai/get-started/installation)).
+- A CUDA or ROCm machine with PyTorch and a Hugging Face-supported GPU
+  (`transformers`, `peft`, and `trl` are installed with dqntrain).
 - A Hugging Face token with write access in `HF_TOKEN`. The library reads it
   from the environment and never stores it in code, the manifest, or logs.
 
@@ -44,7 +44,7 @@ merge = dq.Merge("merged", push_to="DQN-Labs/nexus-27b", dtype="bf16")
 
 pipe = dq.Sequential("nexus-27b-v1",
     repo="DQN-Labs/nexus-ckpt",
-    base="unsloth/Qwen3-4B",
+    base="Qwen/Qwen3-4B",
     load=dq.Load(four_bit=True, max_seq_length=4096),
     stages=[sft, dpo, grpo, merge],
 )
@@ -58,7 +58,7 @@ raises `DuplicateStageError` at construction or `add` time.
 ## Before running
 
 ```python
-dq.env_report()      # python, torch, CUDA/ROCm, unsloth, trl, versions
+dq.env_report()      # python, torch, CUDA/ROCm, peft, trl, versions
 pipe.summary()       # stage list, dataset row counts, columns, planned actions
 pipe.plan()          # alias of summary()
 ```
@@ -90,8 +90,8 @@ will retrain.
 ## Example script
 
 `examples/nexus_pipeline.py` in the repository is the same pipeline with a tiny
-model (`unsloth/Qwen2.5-0.5B-Instruct`) and small public datasets, and runs end
-to end on a single GPU.
+model (`Qwen/Qwen2.5-0.5B-Instruct`) and small public datasets, and runs end to
+end on a single GPU.
 
 ## Test notebook
 
@@ -100,9 +100,13 @@ exercises every stage type — SFT, DPO, GRPO, Custom (a hand-written trainer
 step), Merge, and optionally Eval — with tiny datasets, in about 10 minutes.
 Use it to smoke-test an environment or a change before a real run.
 
+For a 2x T4 (Turing, fp16-only) rig, `examples/qwen3_0_6b_t4_smoke.ipynb`
+is a shorter smoke test that also exercises crash/resume, config hashing and
+rerun, lock takeover, multi-adapter switching, and an fp16 merge.
+
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/DQN-Labs/dqntrain/blob/main/examples/quick_test.ipynb)
 [![Open in Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/kernels/welcome?src=https%3A%2F%2Fraw.githubusercontent.com%2FDQN-Labs%2Fdqntrain%2Fmain%2Fexamples%2Fquick_test.ipynb)
 
-The setup cell installs Unsloth and dqntrain, reading `HF_TOKEN` (and
-`GITHUB_TOKEN` while the repo is private) from the environment, Colab Secrets,
-or Kaggle secrets.
+The setup cell installs dqntrain and its transformers/PEFT/TRL stack, reading
+`HF_TOKEN` from the environment, Colab Secrets, or Kaggle secrets. Unsloth is
+not required.

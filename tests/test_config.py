@@ -75,7 +75,7 @@ def test_lora_defaults_and_aliases():
         "lora_alpha": 16,
         "lora_dropout": 0.0,
         "target_modules": "all-linear",
-        "use_gradient_checkpointing": "unsloth",
+        "use_gradient_checkpointing": True,
     }
     assert dq.LoRA(r=32, alpha=64).values["lora_alpha"] == 64
     assert dq.LoRA(dropout=0.1, target_modules=["q_proj"]).values["lora_dropout"] == 0.1
@@ -84,9 +84,9 @@ def test_lora_defaults_and_aliases():
 
 
 def test_load_defaults_and_aliases():
-    assert dq.Load().values == {"max_seq_length": 2048, "load_in_4bit": True}
+    assert dq.Load().values == {"max_seq_length": 2048, "load_in_4bit": False}
     assert dq.Load(four_bit=False).values["load_in_4bit"] is False
-    assert dq.Load(load_in_4bit=False).values["load_in_4bit"] is False
+    assert dq.Load(load_in_4bit=True).values["load_in_4bit"] is True
     assert dq.Load(max_seq_length=4096).values["max_seq_length"] == 4096
 
 

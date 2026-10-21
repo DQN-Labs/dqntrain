@@ -66,11 +66,11 @@ def test_summary_fails_before_model_load(tmp_path, datasets, hfakes, monkeypatch
     def explode():
         raise AssertionError("model must not be loaded in summary()")
 
-    monkeypatch.setattr(stages, "_fast_language_model", explode)
+    monkeypatch.setattr(stages.backend, "load_model", explode)
     pipe = dq.Sequential(
         "run", base="base", store=LocalStore(tmp_path / "store"),
         stages=[dq.SFT("sft", data=dq.Data("bad"))],
     )
     with pytest.raises(DataColumnError):
         pipe.summary()
-    assert hfakes.flm.calls == []
+    assert hfakes.calls == []

@@ -1,8 +1,8 @@
 # dqntrain
 
-Simple, resumable training pipelines for Unsloth + TRL. A pipeline is a short
-list of stage objects; the Hugging Face repo is the only memory, so a wiped
-notebook resumes exactly where it stopped.
+Simple, resumable training pipelines for transformers + PEFT + TRL. A pipeline
+is a short list of stage objects; the Hugging Face repo is the only memory, so a
+wiped notebook resumes exactly where it stopped.
 
 ## Documentation
 
@@ -30,8 +30,21 @@ mkdocs serve     # local preview at http://127.0.0.1:8000
 pip install dqntrain
 ```
 
-`dqntrain` targets CUDA/ROCm machines where Unsloth works. The core pipeline
-logic is dependency-light and runs anywhere.
+`dqntrain` targets CUDA/ROCm machines. Training runs on plain transformers,
+PEFT, and TRL; Unsloth is not required. Quantization is optional and only used
+when `four_bit=True` and bitsandbytes works on the machine.
+
+### Backend
+
+`dqntrain.backend` exposes five functions used by every stage:
+
+| Function | Implementation |
+|---|---|
+| `load_model(name, dtype, max_seq_length)` | `AutoModelForCausalLM.from_pretrained`, falling back to `AutoModelForImageTextToText` for vision-language checkpoints |
+| `apply_lora(model, lora_cfg)` | `peft.get_peft_model` plus transformers `gradient_checkpointing_enable()` |
+| `generate(model, tokenizer, prompts, **gen_kwargs)` | `model.generate` with `eval()`/`train()` mode switching |
+| `save_adapter(model, path)` | PEFT `save_pretrained` |
+| `merge_and_save(model, path, dtype)` | `merge_and_unload()` then `save_pretrained` |
 
 ## Quick start
 
@@ -44,7 +57,7 @@ sft = dq.SFT("sft-code",
     save_every=200,
 )
 pipe = dq.Sequential("nexus-v1", repo="you/nexus-ckpt",
-    base="unsloth/Qwen3-4B", stages=[sft])
+    base="Qwen/Qwen3-4B", stages=[sft])
 pipe.run()
 ```
 
@@ -56,9 +69,9 @@ last checkpoint the manifest lists and continues. `pipe.summary()` shows what
 
 | Class | Arguments | Notes |
 |---|---|---|
-| `SFT` | `data`, `lora=None`, `train=None`, `save_every=None`, `format="chatml"` | `SFTTrainer`. `format` is `"chatml"`, `"text"`, or `"template"` (tokenizer chat template) |
-| `DPO` | `data`, `lora=None`, `train=None`, `save_every=None` | `DPOTrainer`. `beta` lives in `train` |
-| `GRPO` | `data`, `reward_funcs`, `reward_weights=None`, `lora=None`, `train=None`, `save_every=None` | `GRPOTrainer`. `reward_funcs` is a list of callables |
+| `SFT` | `data`, `lora=None`, `train=None`, `save_every=None`, `format="chatml"`, `callbacks=None` | `SFTTrainer`. `format` is `"chatml"`, `"text"`, or `"template"` (tokenizer chat template) |
+| `DPO` | `data`, `lora=None`, `train=None`, `save_every=None`, `callbacks=None` | `DPOTrainer`. `beta` lives in `train` |
+| `GRPO` | `data`, `reward_funcs`, `reward_weights=None`, `lora=None`, `train=None`, `save_every=None`, `callbacks=None` | `GRPOTrainer`. `reward_funcs` is a list of callables |
 | `Merge` | `push_to=None`, `dtype="bf16"` | Merges the LoRA into the base, dequantizes, optionally pushes to a separate repo |
 | `Eval` | `tasks`, `limit=None` | lm-eval tasks on the current model; results saved as JSON |
 | `Custom` | `fn`, `data=None`, `save_every=None` | `fn(model, tokenizer, data, ctx)` runs your training and returns the model |
@@ -92,9 +105,9 @@ protocol as built-in stages.
 | Helper | Defaults | Forwarded to |
 |---|---|---|
 | `Data(name, split="train", subset=None, revision=None, seed=3407, limit=None, columns=None, filter=None, map=None, eval=None)` | `seed=3407` | `datasets.load_dataset` |
-| `LoRA(r=16, alpha=16, dropout=0.0, target_modules="all-linear", **kwargs)` | `use_gradient_checkpointing="unsloth"` | `FastLanguageModel.get_peft_model` |
+| `LoRA(r=16, alpha=16, dropout=0.0, target_modules="all-linear", **kwargs)` | `use_gradient_checkpointing=True` | `peft.get_peft_model` + transformers gradient checkpointing |
 | `Train(**kwargs)` | none | the TRL config for the stage |
-| `Load(**kwargs)` | `max_seq_length=2048`, `load_in_4bit=True` | `FastLanguageModel.from_pretrained` |
+| `Load(**kwargs)` | `max_seq_length=2048`, `load_in_4bit=False` | `AutoModelForCausalLM.from_pretrained` |
 
 All helpers accept a plain dict: `dq.Train(**my_dict)`. Unknown keywords pass
 through unchanged. `Data.columns` maps the **expected** name to the **source**
@@ -144,7 +157,7 @@ pipe.status()                # stage, status, latest checkpoint, config hash
 pipe.run()                   # resume or start; safe to call again
 pipe.rerun("dpo-prefs")      # retrain this stage and all later stages
 pipe.reset(confirm=True)     # delete this run's folder in the store
-dq.env_report()              # python, torch, CUDA/ROCm, unsloth, bnb, trl, ...
+dq.env_report()              # python, torch, CUDA/ROCm, peft, bnb, trl, ...
 ```
 
 ## Data pipeline
@@ -184,16 +197,18 @@ additionally runs a real-TRL tiny-model integration test.
 
 The pipeline and resume logic are tested against:
 
-- Python 3.10, torch 2.11
-- transformers 5.0.0 (the TRL trainer API is used via `processing_class`, with
-  a `tokenizer=` fallback for older TRL)
-- trl 1.2.0, datasets 4.8.4, huggingface_hub 1.2.3
+- Python 3.10, torch 2.11 on CPU and ROCm
+- transformers 5.17, trl 1.13, peft 0.21, datasets 4.8
+- transformers 5.0 (the TRL trainer API is used via `processing_class`, with a
+  `tokenizer=` fallback for older TRL)
 
-Unsloth and ROCm support depend on exact environment pins; install the Unsloth
-version recommended for your GPU and driver, then match `torch`, `trl`, and
-`transformers` to it.
+ROCm pins matter for the kernel stack. On MI300X, set
+`HSA_OVERRIDE_GFX_VERSION=9.4.2` before importing torch. Quantization
+(`four_bit=True`) is optional; bf16 LoRA is the default and needs no
+bitsandbytes.
 
 ## Out of scope for v1
 
 Branching pipelines, automatic checkpoint pruning, automatic eval splits,
-reward sandboxing, and multi-GPU orchestration beyond Unsloth and TRL.
+reward sandboxing, vLLM rollouts, multi-GPU orchestration, and Unsloth-specific
+kernels.

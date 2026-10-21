@@ -23,17 +23,22 @@ def test_real_trl_sft_checkpoint_and_resume(tmp_path, monkeypatch):
     tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
     model = transformers.AutoModelForCausalLM.from_pretrained(model_name)
 
-    class FakeFLM:
+    class FakeBackend:
         @staticmethod
-        def from_pretrained(model_name=None, **kwargs):
+        def load_model(name=None, **kwargs):
             return model, tokenizer
 
         @staticmethod
-        def get_peft_model(inner, **kwargs):
+        def apply_lora(inner, cfg):
             return inner
 
-    monkeypatch.setattr(stages, "_fast_language_model", lambda: FakeFLM)
-    monkeypatch.setattr(stages, "_load_adapter", lambda inner, folder: inner)
+        @staticmethod
+        def _load_adapter(inner, folder):
+            return inner
+
+    monkeypatch.setattr(stages.backend, "load_model", FakeBackend.load_model)
+    monkeypatch.setattr(stages.backend, "apply_lora", FakeBackend.apply_lora)
+    monkeypatch.setattr(stages.backend, "_load_adapter", FakeBackend._load_adapter)
     rows = [[{"role": "user", "content": "hi"}, {"role": "assistant", "content": "yo"}]] * 8
     monkeypatch.setattr(
         data_mod, "_load_dataset",
